@@ -7,6 +7,7 @@ on:
     - cron: "7 14 * * *"   # 14:07
     - cron: "7 17 * * *"   # 17:07
     - cron: "7 20 * * *"   # 20:07
+    - cron: "37 18 * * *"  # 18:37 extra slot (carousels and reels)
   workflow_dispatch:        # lets you press "Run workflow" to test
     inputs:
       dry_run:
@@ -15,6 +16,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: instagram-post
+  cancel-in-progress: false
 
 jobs:
   post:
@@ -28,8 +33,9 @@ jobs:
           DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
         run: python3 post.py
       - name: Record what was posted
+        if: always()
         run: |
           git config user.name "puritan-gems-bot"
           git config user.email "actions@users.noreply.github.com"
           git add schedule.csv
-          git diff --cached --quiet || (git commit -m "posted" && git push)
+          git diff --cached --quiet || (git commit -m "posted" && git pull --rebase && git push)
