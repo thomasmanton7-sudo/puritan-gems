@@ -30,6 +30,9 @@ def call(method, path, **params):
         sys.exit(f"Instagram API error {e.code}: {e.read().decode()}")
 
 
+me = call("GET", USER, fields="username")      # checks the token works
+print("Connected as @" + me.get("username", "?"))
+
 rows = list(csv.DictReader(open("schedule.csv", newline="", encoding="utf-8")))
 now = datetime.datetime.utcnow()
 due = [r for r in rows if not r["posted"]
