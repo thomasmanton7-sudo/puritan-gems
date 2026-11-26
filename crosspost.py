@@ -63,7 +63,11 @@ class Facebook:
         return http(method, f"{self.api}/{path}", p)
 
     def hello(self):
-        print("Facebook Page:", self.call("GET", self.page, fields="name").get("name"))
+        info = self.call("GET", self.page, fields="name,access_token")
+        print("Facebook Page:", info.get("name"))
+        if info.get("access_token"):        # secret was a user token: swap in the Page's own token
+            self.token = info["access_token"]
+            print("Facebook: using the Page token")
 
     def publish(self, row):
         kind = (row.get("type") or "IMAGE").upper()
