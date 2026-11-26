@@ -76,6 +76,16 @@ def story_image(card_path, out):
     bg.save(out, quality=88)
 
 
+def ffmpeg():
+    import shutil
+    if shutil.which("ffmpeg"):
+        return "ffmpeg"
+    # GitHub runners no longer ship ffmpeg: fetch a static build only when a Reel is being made
+    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "imageio-ffmpeg"], check=True)
+    import imageio_ffmpeg
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
 def reel_video(card_path, out, secs=10):
     still = out.replace(".mp4", "_still.jpg")
     card = Image.open(card_path).convert("RGB")
@@ -91,7 +101,7 @@ def reel_video(card_path, out, secs=10):
     af = (f"aevalsrc='0.05*sin(2*PI*{base[0]}*t)+0.035*sin(2*PI*{base[1]}*t)+0.03*sin(2*PI*{base[2]}*t)"
           f"+0.02*sin(2*PI*{base[3]}*t)*(0.6+0.4*sin(2*PI*0.2*t))':s=44100:d={secs},afade=t=in:d=1.5,"
           f"afade=t=out:st={secs-2}:d=2,lowpass=f=1200,volume=1.6")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-i", still, "-f", "lavfi", "-i", af,
+    subprocess.run([ffmpeg(), "-y", "-loglevel", "error", "-loop", "1", "-i", still, "-f", "lavfi", "-i", af,
                     "-vf", vf, "-t", str(secs), "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
                     "-r", str(fps), "-c:a", "aac", "-b:a", "128k", "-ac", "2", "-shortest",
                     "-movflags", "+faststart", out], check=True)
