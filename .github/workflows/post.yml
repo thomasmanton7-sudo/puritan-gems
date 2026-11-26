@@ -1,13 +1,14 @@
 name: Post to Instagram
 
 on:
-  schedule:
-    - cron: "7 8 * * *"    # morning
-    - cron: "7 11 * * *"   # late morning (from 25 Dec)
-    - cron: "7 13 * * *"   # midday (from 11 Dec)
-    - cron: "7 16 * * *"   # afternoon (from 25 Dec)
-    - cron: "37 18 * * *"  # carousel (Sun) / reel (Sat)
-    - cron: "7 19 * * *"   # evening
+  schedule:                # UK times (UTC in winter); odd minutes dodge GitHub's busy queue
+    - cron: "23 7 * * *"   # breakfast
+    - cron: "23 10 * * *"  # mid-morning (from 8 Jan)
+    - cron: "23 12 * * *"  # lunch (from 11 Dec)
+    - cron: "41 15 * * *"  # Saturday reel / Sunday carousel
+    - cron: "23 17 * * *"  # after work (from 25 Dec)
+    - cron: "23 19 * * *"  # evening (until 24 Dec)
+    - cron: "23 20 * * *"  # evening (from 25 Dec)
   workflow_dispatch:        # lets you press "Run workflow" to test
     inputs:
       dry_run:
