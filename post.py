@@ -16,7 +16,7 @@ TOKEN = os.environ["IG_TOKEN"]
 REPO = os.environ["GITHUB_REPOSITORY"]
 BRANCH = os.environ.get("GITHUB_REF_NAME", "main")
 DRY = os.environ.get("DRY_RUN") == "1"
-MAX_PER_RUN = 4
+MAX_PER_RUN = 1
 
 
 def call(method, path, **params):
