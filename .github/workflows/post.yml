@@ -1,4 +1,4 @@
-name: Post to Instagram, Facebook and Threads
+name: Post to Instagram, Facebook and X
 
 on:
   schedule:                # UK times (UTC in winter); odd minutes dodge GitHub's busy queue
@@ -9,6 +9,7 @@ on:
     - cron: "23 17 * * *"  # after work (from 25 Dec)
     - cron: "23 19 * * *"  # evening (until 24 Dec)
     - cron: "23 20 * * *"  # evening (from 25 Dec)
+    - cron: "53 * * * *"   # hourly backup: catches any run GitHub skips (only posts what is due)
   workflow_dispatch:        # lets you press "Run workflow" to test
     inputs:
       dry_run:
@@ -48,7 +49,7 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           pip install --quiet pillow
           python3 extras.py
-      - name: Copy to Facebook and Threads
+      - name: Copy to Facebook and X
         if: always()
         continue-on-error: true
         env:
@@ -57,6 +58,10 @@ jobs:
           TH_USER_ID: ${{ secrets.TH_USER_ID }}
           TH_TOKEN: ${{ secrets.TH_TOKEN }}
           TH_KEY: ${{ secrets.TH_KEY }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
           DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
         run: python3 crosspost.py
       - name: Record what was posted
