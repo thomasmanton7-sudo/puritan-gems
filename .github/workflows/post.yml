@@ -36,6 +36,18 @@ jobs:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
         run: python3 post.py
+      - name: Story + Reels (extra reach)
+        if: always()
+        continue-on-error: true
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
+        run: |
+          git config user.name "puritan-gems-bot"
+          git config user.email "actions@users.noreply.github.com"
+          pip install --quiet pillow
+          python3 extras.py
       - name: Copy to Facebook and Threads
         if: always()
         continue-on-error: true
@@ -53,5 +65,5 @@ jobs:
           git config user.name "puritan-gems-bot"
           git config user.email "actions@users.noreply.github.com"
           git add schedule.csv
-          for f in crosspost_state.json th_token.enc; do [ -f "$f" ] && git add "$f"; done
+          for f in crosspost_state.json extras_state.json th_token.enc; do [ -f "$f" ] && git add "$f"; done
           git diff --cached --quiet || (git commit -m "posted" && git pull --rebase && git push)
