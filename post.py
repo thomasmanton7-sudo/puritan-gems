@@ -91,11 +91,22 @@ if not due:
     print("Nothing due.")
     sys.exit(0)
 
+def recent_captions():
+    """Captions of the last few Instagram posts, so a quote is never posted twice."""
+    try:
+        data = call("GET", f"{USER}/media", fields="caption", limit="10").get("data", [])
+        return [(m.get("caption") or "")[:80] for m in data]
+    except Exception as e:
+        print("Could not read recent posts:", e); return []
+
 failed = False
 for row in due[:MAX_PER_RUN]:
     print("Posting", row["n"], row.get("type") or "IMAGE", row["image"][:80])
     if DRY:
         print(row["caption"][:200]); continue
+    if row["caption"][:80] in recent_captions():
+        print("Already on Instagram - marking as posted, not posting again.")
+        row["posted"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M"); continue
     try:
         print("Published", publish(row))
         row["posted"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M")
