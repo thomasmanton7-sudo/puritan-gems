@@ -1,4 +1,4 @@
-"""Copies each Instagram post to a Facebook Page and to Threads, after Instagram has posted it.
+"""Copies each Instagram post to a Facebook Page, Threads and X, after Instagram has posted it.
 
 Runs in GitHub Actions right after post.py. Each platform switches on only when its secrets exist:
   Facebook:  FB_PAGE_ID, FB_PAGE_TOKEN            (a Page token made from a long-lived user token never expires)
@@ -9,7 +9,8 @@ in th_token.enc, encrypted with TH_KEY, so it never runs out.
 
 Progress lives in crosspost_state.json: which Instagram posts each platform has copied.
 A platform only copies posts Instagram made after that platform was switched on (no backlog flood).
-A failure on Facebook or Threads never affects Instagram.
+  X:         X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET  (pay-per-use credits; Reels are skipped)
+A failure on Facebook, Threads or X never affects Instagram.
 """
 import csv, datetime, json, os, subprocess, sys, time, urllib.parse, urllib.request
 
@@ -161,6 +162,62 @@ class Threads:
         return self.call("POST", f"{self.user}/threads_publish", creation_id=c)
 
 
+
+# ---------------- X (Twitter) ----------------
+class X:
+    name = "x"
+
+    def __init__(self):
+        e = os.environ.get
+        self.ck, self.cs, self.at, self.ats = e("X_API_KEY"), e("X_API_SECRET"), e("X_ACCESS_TOKEN"), e("X_ACCESS_SECRET")
+        self.on = all([self.ck, self.cs, self.at, self.ats])
+
+    def auth(self, method, url):
+        import base64, hashlib, hmac, secrets
+        q = lambda v: urllib.parse.quote(str(v), safe="~")
+        o = {"oauth_consumer_key": self.ck, "oauth_nonce": secrets.token_hex(16),
+             "oauth_signature_method": "HMAC-SHA1", "oauth_timestamp": str(int(time.time())),
+             "oauth_token": self.at, "oauth_version": "1.0"}
+        base = "&".join([method, q(url), q("&".join(f"{q(k)}={q(v)}" for k, v in sorted(o.items())))])
+        key = f"{q(self.cs)}&{q(self.ats)}".encode()
+        o["oauth_signature"] = base64.b64encode(hmac.new(key, base.encode(), hashlib.sha1).digest()).decode()
+        return "OAuth " + ", ".join(f'{q(k)}="{q(v)}"' for k, v in o.items())
+
+    def req(self, method, url, body=None, ctype=None):
+        h = {"Authorization": self.auth(method, url)}
+        if ctype: h["Content-Type"] = ctype
+        r = urllib.request.Request(url, data=body, method=method, headers=h)
+        try:
+            with urllib.request.urlopen(r, timeout=120) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"{e.code}: {e.read().decode()[:400]}")
+
+    def hello(self):
+        print("X: @" + self.req("GET", "https://api.x.com/2/users/me")["data"]["username"])
+
+    def upload(self, path):
+        boundary = "----pg" + str(int(time.time() * 1000))
+        data = open(path, "rb").read()
+        body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"media_category\"\r\n\r\ntweet_image\r\n"
+                f"--{boundary}\r\nContent-Disposition: form-data; name=\"media\"; filename=\"card.jpg\"\r\n"
+                f"Content-Type: image/jpeg\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
+        r = self.req("POST", "https://api.x.com/2/media/upload", body, f"multipart/form-data; boundary={boundary}")
+        return (r.get("data") or r).get("id") or r.get("media_id_string")
+
+    def publish(self, row):
+        kind = (row.get("type") or "IMAGE").upper()
+        if kind == "REELS":
+            return "skipped (videos are not copied to X)"
+        names = row["image"].split("|")[:4]
+        ids = [self.upload("posts/" + n) for n in names]
+        t = short_text(row)
+        if len(t) > 275:       # the card carries the full quote
+            a, s = row.get("author", ""), row.get("source", "")
+            t = (f"\u2014 {a}" + (f", {s}" if s else "")) if a else ""
+        body = json.dumps({"text": t, "media": {"media_ids": ids}}).encode()
+        return self.req("POST", "https://api.x.com/2/tweets", body, "application/json")
+
 # ---------------- main ----------------
 state = json.load(open(STATE)) if os.path.exists(STATE) else {}
 rows = list(csv.DictReader(open("schedule.csv", newline="", encoding="utf-8")))
@@ -168,7 +225,7 @@ ig_done = [r for r in rows if r["posted"][:4].isdigit()]
 ig_done.sort(key=lambda r: r["posted"])
 failed = False
 
-for p in (Facebook(), Threads(state)):
+for p in (Facebook(), Threads(state), X()):
     if not p.on:
         print(f"{p.name}: not set up yet, skipping"); continue
     s = state.setdefault(p.name, {"since": NOW.strftime("%Y-%m-%d %H:%M"), "done": []})
