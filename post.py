@@ -85,8 +85,14 @@ print("Connected as @" + me.get("username", "?"))
 
 rows = list(csv.DictReader(open("schedule.csv", newline="", encoding="utf-8")))
 now = datetime.datetime.utcnow()
-due = [r for r in rows if not r["posted"]
-       and datetime.datetime.fromisoformat(f"{r['date']}T{r['time']}") <= now]
+def when(r):
+    try:
+        return datetime.datetime.fromisoformat(f"{r['date']}T{r['time']}")
+    except (TypeError, ValueError):
+        return None   # a broken line in the schedule is skipped, not fatal
+
+rows = [r for r in rows if r.get("n") and r.get("date")]
+due = [r for r in rows if not r["posted"] and when(r) and when(r) <= now]
 if not due:
     print("Nothing due.")
     sys.exit(0)
