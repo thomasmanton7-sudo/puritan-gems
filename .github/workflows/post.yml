@@ -2,6 +2,7 @@ name: Post to Instagram, Facebook and X
 
 on:
   schedule:                # UK times (UTC in winter); odd minutes dodge GitHub's busy queue
+    - cron: "23 1 * * *"   # American evening (8:23pm New York, 5:23pm LA)
     - cron: "23 7 * * *"   # breakfast
     - cron: "23 10 * * *"  # mid-morning (from 8 Jan)
     - cron: "23 12 * * *"  # lunch (from 11 Dec)
@@ -71,6 +72,11 @@ jobs:
         run: |
           git config user.name "puritan-gems-bot"
           git config user.email "actions@users.noreply.github.com"
+          # if two runs collided, keep this run's version of any half-merged file
+          for f in $(git diff --name-only --diff-filter=U); do git checkout --theirs -- "$f" || true; done
+          if grep -lE '^(<<<<<<<|>>>>>>>) ' schedule.csv crosspost_state.json extras_state.json; then
+            echo "Merge leftovers found - not saving this run's record"; exit 0
+          fi
           git add schedule.csv
           for f in crosspost_state.json extras_state.json th_token.enc; do [ -f "$f" ] && git add "$f"; done
           git diff --cached --quiet || (git commit -m "posted" && git pull --rebase && git push)
