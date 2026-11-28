@@ -64,10 +64,12 @@ def publish(row):
         c = call("POST", f"{USER}/media", media_type="CAROUSEL", children=",".join(kids), caption=cap)["id"]
         wait_ready(c)
     elif kind == "REELS":
+        cover = row["image"].rsplit(".", 1)[0] + "_cover.jpg"     # optional custom thumbnail
+        extra = {"cover_url": img_url(cover)} if os.path.exists(os.path.join("posts", cover)) else {}
         for url in (vid_url(row["image"]), img_url(row["image"])):   # CDN first, raw GitHub as fallback
             try:
                 c = call("POST", f"{USER}/media", media_type="REELS", video_url=url,
-                         caption=cap, share_to_feed="true")["id"]
+                         caption=cap, share_to_feed="true", **extra)["id"]
                 wait_ready(c, tries=60, every=10)
                 break
             except RuntimeError as e:
