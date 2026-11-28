@@ -65,7 +65,8 @@ def publish(row):
         wait_ready(c)
     elif kind == "REELS":
         cover = row["image"].rsplit(".", 1)[0] + "_cover.jpg"     # optional custom thumbnail
-        extra = {"cover_url": img_url(cover)} if os.path.exists(os.path.join("posts", cover)) else {}
+        # never post a Reel with a blank first-frame thumbnail: use the cover, or else a frame 4s in
+        extra = {"cover_url": img_url(cover)} if os.path.exists(os.path.join("posts", cover)) else {"thumb_offset": "4000"}
         for url in (vid_url(row["image"]), img_url(row["image"])):   # CDN first, raw GitHub as fallback
             try:
                 c = call("POST", f"{USER}/media", media_type="REELS", video_url=url,
